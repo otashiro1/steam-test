@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>英単語クロース練習アプリ（Lesson 1–6）</title>
+<title>英単語クロース練習アプリ（Lesson 1–6｜日別正答率グラフ付き）</title>
 <style>
   :root {
     --bg: #f7f9fc; --panel:#ffffff; --muted:#6b7280; --text:#0f172a; --accent:#2563eb;
@@ -11,7 +11,7 @@
   }
   html, body { height: 100%; }
   body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, "Hiragino Sans", "Noto Sans JP", sans-serif; color: var(--text); background: linear-gradient(#fff, var(--bg)); }
-  .container { max-width: 900px; margin: 0 auto; padding: 24px; }
+  .container { max-width: 960px; margin: 0 auto; padding: 24px; }
   header { display:flex; align-items:center; justify-content:space-between; gap: 16px; margin-bottom:16px; }
   h1 { font-size: 22px; margin: 0; }
   .stats { color: var(--muted); font-size: 13px; }
@@ -22,6 +22,7 @@
   select, input[type="text"] { border: 1px solid var(--ring); border-radius: 12px; padding: 10px 12px; font-size: 16px; }
   button { border: 1px solid var(--ring); background: #fff; border-radius: 12px; padding: 9px 12px; font-size: 14px; cursor: pointer; transition: .15s ease; }
   button:hover { transform: translateY(-1px); box-shadow: 0 6px 12px rgba(0,0,0,.06); }
+  button[disabled]{ opacity:.6; cursor:not-allowed; box-shadow:none; transform:none; }
   .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
   .btn-ghost { background: #fff; }
   .btn-danger { border-color: #fca5a5; background: #fff5f5; }
@@ -37,6 +38,8 @@
   .divider { height:1px; background: var(--ring); margin: 10px 0; }
   .accept { font-size: 12px; color: var(--muted); word-break: break-word; }
   .tiny { font-size: 12px; color: var(--muted); }
+  .chart-wrap { margin-top: 18px; }
+  #dailyChart { width: 100%; height: 220px; border: 1px solid var(--ring); border-radius: 12px; background:#fff; }
 </style>
 </head>
 <body>
@@ -59,7 +62,10 @@
         </div>
       </div>
 
-      <div class="tiny">文中の該当語を自動で「____」に置換します。日本語ヒントでは漢字にふりがなが付きます。</div>
+      <div class="tiny">
+        文中の該当語を自動で「____」に置換します。日本語ヒントでは漢字にふりがなを付けます。<br>
+        ※「判定」は<strong>1回の入力につき1度だけ</strong>カウント。同じ入力で連打しても増えません。
+      </div>
 
       <div class="row">
         <div id="cloze" class="cloze">—</div>
@@ -81,26 +87,172 @@
         <div id="position">—</div>
         <div><span class="kbd">Enter</span> で判定</div>
       </div>
+
+      <div class="chart-wrap">
+        <div class="tiny">日別正答率（直近30日）</div>
+        <canvas id="dailyChart"></canvas>
+      </div>
     </div>
 
     <div class="footer">データの編集はHTML末尾の <code>LESSONS</code> を更新してください。</div>
   </div>
 
 <script>
-const LESSONS = { /* データは省略（前と同じ） */ };
+// ===== Data (Lesson 1–6) =====
+const LESSONS = {
+  "Lesson 1": [
+    { term: "actor",        sentence: "what the actors do on stage",             jp: "俳優が舞台の上ですること" },
+    { term: "brings back",  sentence: "brings back memories",                    jp: "思い出を思い出させる" },
+    { term: "certainly",    sentence: "certainly brings back memories",          jp: "確実に記憶を思い出させる" },
+    { term: "difficult",    sentence: "uses some difficult language",            jp: "難しい言語を使う" },
+    { term: "downstairs",   sentence: "was back downstairs",                     jp: "下の階に戻る" },
+    { term: "dressed",      sentence: "dressed as Romeo",                        jp: "ロミオのような服を着て" },
+    { term: "floor",        sentence: "the living room floor",                   jp: "リビングの床" },
+    { term: "grabbed",      sentence: "grabbed Mom",                             jp: "お母さんを掴んだ" },
+    { term: "in a flash",   sentence: "was back downstairs in a flash",          jp: "あっという間に下の階に戻る" },
+    { term: "language",     sentence: "uses some difficult language",            jp: "難しい言語を使う" },
+    { term: "living room",  sentence: "walking into the living room",            jp: "リビングに歩いて入る" },
+    { term: "memory",       sentence: "brings back memories",                    jp: "記憶を思い出させる" },
+    { term: "pointed",      sentence: "pointed over to the stairs",              jp: "階段の方を指した" },
+    { term: "scene",        sentence: "the balcony scene",                        jp: "バルコニーの場面" },
+    { term: "slowly",       sentence: "slowly walked down the steps",            jp: "ゆっくり階段を降りた" }
+  ],
+  "Lesson 2": [
+    { term: "acted out",    sentence: "acted out the balcony scene",             jp: "場面を演技して見せた" },
+    { term: "actually",     sentence: "were actually in love",                   jp: "実際に恋をしていた" },
+    { term: "basically",    sentence: "basically",                               jp: "基本的に" },
+    { term: "certain",      sentence: "in a certain situation",                  jp: "特定の状況で" },
+    { term: "character",    sentence: "how your character would feel",           jp: "登場人物がどう感じるか" },
+    { term: "emotion",      sentence: "show real emotion",                       jp: "実際の感情を見せる" },
+    { term: "explained",    sentence: "dad explained",                           jp: "お父さんが説明した" },
+    { term: "feel",         sentence: "how your character would feel",           jp: "登場人物がどう感じるか" },
+    { term: "kept",         sentence: "kept the costumes",                       jp: "衣装を保管した" },
+    { term: "pretended",    sentence: "pretended to date",                       jp: "デートするふりをした" },
+    { term: "realized",     sentence: "realized at once",                        jp: "すぐに気づいた" },
+    { term: "reminds",      sentence: "reminds us",                              jp: "思い起こさせる" },
+    { term: "romantic",     sentence: "seem romantic",                           jp: "ロマンチックに見える" },
+    { term: "run off",      sentence: "run off",                                 jp: "逃げる" },
+    { term: "technique",    sentence: "a technique called method acting",        jp: "メソッド演技と呼ばれる技術" }
+  ],
+  "Lesson 3": [
+    { term: "ancient",      sentence: "Ancient Greece",                          jp: "古代ギリシャ" },
+    { term: "attend",       sentence: "attend a party",                          jp: "パーティーに参加する" },
+    { term: "culture",      sentence: "vary from culture to culture",            jp: "文化によって異なる" },
+    { term: "evil",         sentence: "an evil daughter",                        jp: "邪悪な娘" },
+    { term: "fairy tale",   sentence: "one of many fairy tales",                 jp: "多くのおとぎ話の中の1つ" },
+    { term: "lap",          sentence: "into the lap of the pharaoh",             jp: "ファラオの膝に" },
+    { term: "marries",      sentence: "marries the pharaoh",                     jp: "ファラオと結婚する" },
+    { term: "modern",       sentence: "in the modern Cinderella story",          jp: "現代のシンデレラストーリー" },
+    { term: "owner",        sentence: "looks for its owner",                     jp: "持ち主を探す" },
+    { term: "plot",         sentence: "the setting, characters, and plot",       jp: "背景、登場人物、あらすじ" },
+    { term: "remarries",    sentence: "remarries after her mother dies",         jp: "母の死後に再婚する" },
+    { term: "setting",      sentence: "the setting, characters, and plot",       jp: "背景、登場人物、あらすじ" },
+    { term: "slave",        sentence: "a slave in Egypt",                        jp: "エジプトの奴隷" },
+    { term: "theme",        sentence: "the basic themes",                        jp: "基本の主題" },
+    { term: "vary",         sentence: "vary from culture to culture",            jp: "文化によって異なる" }
+  ],
+  "Lesson 4": [
+    { term: "adult",        sentence: "adult",                                   jp: "大人" },
+    { term: "belong to",    sentence: "belong to a human",                       jp: "人間に属する" },
+    { term: "continent",    sentence: "continents crashing together",            jp: "大陸の衝突と合体" },
+    { term: "crash",        sentence: "continents crashing together",            jp: "大陸の衝突と合体" },
+    { term: "depends on",   sentence: "depends on the mountains",                jp: "山による" },
+    { term: "edge",         sentence: "the edges of the continents",             jp: "大陸の端" },
+    { term: "evidence",     sentence: "no evidence of any Yetis",                jp: "雪男の証拠なし" },
+    { term: "fold",         sentence: "fold upward",                             jp: "上に向かって折れる" },
+    { term: "footprint",    sentence: "a set of footprints",                     jp: "一組の足跡" },
+    { term: "monster",      sentence: "ape-like snow monsters",                  jp: "類人猿のような雪の怪物" },
+    { term: "result",       sentence: "result",                                  jp: "結果" },
+    { term: "shifted",      sentence: "shifted and crashed into Eurasia",        jp: "ユーラシアにぶつかった" },
+    { term: "stranger",     sentence: "stranger",                                jp: "見知らぬ人" },
+    { term: "surprising",   sentence: "the most surprising thing about the Himalayas", jp: "ヒマラヤで最も驚くべきこと" },
+    { term: "trail",        sentence: "started up a trail",                      jp: "登山路を登り始めた" }
+  ],
+  "Lesson 5": [
+    { term: "bottom",       sentence: "on the bottom",                           jp: "底に" },
+    { term: "cabin",        sentence: "a small cabin",                           jp: "小さな小屋" },
+    { term: "confused",     sentence: "looked confused",                         jp: "慌てたように見えた" },
+    { term: "earthquake",   sentence: "a minor earthquake",                      jp: "軽い地震" },
+    { term: "explanation",  sentence: "for an explanation",                      jp: "説明を求める" },
+    { term: "hard",         sentence: "shook so hard",                           jp: "非常にひどく揺れた" },
+    { term: "head",         sentence: "head back",                               jp: "戻る" },
+    { term: "held on to",   sentence: "held on to Brandon tightly",              jp: "Brandonをぎゅっと掴んだ" },
+    { term: "investigate",  sentence: "we'd better investigate",                 jp: "調査した方が良い" },
+    { term: "minor",        sentence: "a minor earthquake",                      jp: "軽い地震" },
+    { term: "pair",         sentence: "a pair of boots",                         jp: "一足の長靴" },
+    { term: "shook",        sentence: "shook so hard",                           jp: "非常にひどく揺れた" },
+    { term: "trick",        sentence: "I tricked you",                           jp: "君を騙した" },
+    { term: "whole",        sentence: "a whole family",                          jp: "一家全体" },
+    { term: "wooden",       sentence: "wooden footprints",                       jp: "木でできた足跡" }
+  ],
+  "Lesson 6": [
+    { term: "announcement", sentence: "an important announcement",               jp: "重要な発表" },
+    { term: "emergency",    sentence: "the fire drill emergency plan",           jp: "消防訓練の緊急計画" },
+    { term: "evacuate",     sentence: "evacuate the building",                   jp: "建物から避難する" },
+    { term: "exit",         sentence: "exit the building",                       jp: "建物を出る" },
+    { term: "important",    sentence: "an important announcement",               jp: "重要な発表" },
+    { term: "plan",         sentence: "the fire drill emergency plan",           jp: "消防訓緊急計画" },
+    { term: "possible",     sentence: "as much as possible",                     jp: "できるだけ多く" },
+    { term: "prepare",      sentence: "prepare for",                             jp: "備える" },
+    { term: "safely",       sentence: "exit the building safely",                jp: "安全に建物を出る" },
+    { term: "signal",       sentence: "wait for my signal",                      jp: "私の信号を待つ" },
+    { term: "sink",         sentence: "get under a sink",                        jp: "洗面台の下に入る" },
+    { term: "strong",       sentence: "the strongest parts of the building",     jp: "建物の最も丈夫な部分" },
+    { term: "try",          sentence: "give it a try",                           jp: "試してみる" },
+    { term: "under",        sentence: "get under a desk",                        jp: "机の下に入る" },
+    { term: "warning",      sentence: "without warning",                         jp: "警告なく" }
+  ]
+};
 
+// ===== Utilities =====
+const $ = (sel) => document.querySelector(sel);
+const LS_KEY = 'cloze-app-progress-html-v3';        // レッスン集計
+const LS_KEY_ATTEMPTS = 'cloze-app-attempts-v2';    // 全問題の試行履歴（日別集計用）
+function normalize(s){return s.toLowerCase().replace(/\s+/g,' ').trim();}
+function escapeRegExp(s){return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');}
+function todayISO(){ const d = new Date(); const tz = new Date(d.getTime()-d.getTimezoneOffset()*60000); return tz.toISOString().slice(0,10); }
+function buildAcceptableAnswers(base){
+  const b = normalize(base);
+  if (b.includes(' ')){
+    const parts = b.split(' ');
+    const last = parts[parts.length-1];
+    const set = new Set([b]);
+    const sForm = last.endsWith('s') ? last : last + 's';
+    set.add([...parts.slice(0,-1), sForm].join(' '));
+    return [...set];
+  }
+  const set = new Set([b]);
+  if (!b.endsWith('s')) set.add(b+'s');
+  if (!b.endsWith('es')) set.add(b+'es');
+  if (!b.endsWith('ed')) set.add(b+'ed');
+  if (!b.endsWith('ing')) set.add(b+'ing');
+  return [...set];
+}
+function makeCloze(sentence, base){
+  const variants = buildAcceptableAnswers(base).sort((a,b)=>b.length-a.length);
+  let out = sentence, replaced=false;
+  for (const v of variants){
+    const re = new RegExp(`\\b${escapeRegExp(v)}\\b`, 'i');
+    if (re.test(out)) { out = out.replace(re, '____'); replaced=true; break; }
+  }
+  if (!replaced) out = `${sentence} (____)`;
+  return { text: out, replaced };
+}
+function loadLS(key, fallback){ try{ return JSON.parse(localStorage.getItem(key)||JSON.stringify(fallback)); }catch{ return fallback; } }
+function saveLS(key, obj){ localStorage.setItem(key, JSON.stringify(obj)); }
+
+// ===== Furigana (JP hint) =====
 function kanaize(text){
   return text
     .replace(/俳優/g,'<ruby>俳優<rt>はいゆう</rt></ruby>')
     .replace(/舞台/g,'<ruby>舞台<rt>ぶたい</rt></ruby>')
     .replace(/記憶/g,'<ruby>記憶<rt>きおく</rt></ruby>')
     .replace(/言語/g,'<ruby>言語<rt>げんご</rt></ruby>')
+    .replace(/階段/g,'<ruby>階段<rt>かいだん</rt></ruby>')
     .replace(/階/g,'<ruby>階<rt>かい</rt></ruby>')
     .replace(/服/g,'<ruby>服<rt>ふく</rt></ruby>')
     .replace(/床/g,'<ruby>床<rt>ゆか</rt></ruby>')
-    .replace(/掴/g,'<ruby>掴<rt>つか</rt></ruby>')
     .replace(/場面/g,'<ruby>場面<rt>ばめん</rt></ruby>')
-    .replace(/階段/g,'<ruby>階段<rt>かいだん</rt></ruby>')
     .replace(/登場人物/g,'<ruby>登場人物<rt>とうじょうじんぶつ</rt></ruby>')
     .replace(/状況/g,'<ruby>状況<rt>じょうきょう</rt></ruby>')
     .replace(/技術/g,'<ruby>技術<rt>ぎじゅつ</rt></ruby>')
@@ -121,14 +273,187 @@ function kanaize(text){
     .replace(/警告/g,'<ruby>警告<rt>けいこく</rt></ruby>');
 }
 
-function renderHint(text){ return 'ヒント（日）：' + kanaize(text); }
+// ===== State =====
+const state = {
+  lesson: Object.keys(LESSONS)[0],
+  order: [],
+  index: 0,
+  showHint: false,
+  judged: null, // true/false/null
+  progress: loadLS(LS_KEY, {}),
+  attempts: loadLS(LS_KEY_ATTEMPTS, []), // [{date:"YYYY-MM-DD", correct:true/false}]
+  locked: false // 連打防止：同一入力での再判定を無効化
+};
 
-function render(){
-  const cur = LESSONS[state.lesson][state.index];
+// ===== Init =====
+function init(){
+  // lesson selector
+  const sel = $('#lesson');
+  Object.keys(LESSONS).forEach(k=>{ const o=document.createElement('option'); o.value=k; o.textContent=k; sel.appendChild(o); });
+  sel.value = state.lesson;
+
+  resetOrder();
+  render();
+  drawDailyChart();
+
+  // events
+  $('#btn-shuffle').addEventListener('click', ()=>{ shuffle(); render(true); });
+  $('#btn-hint').addEventListener('click', ()=>{ state.showHint = !state.showHint; render(); });
+  $('#btn-reset').addEventListener('click', ()=>{ state.progress[state.lesson] = {total:0, correct:0}; saveLS(LS_KEY, state.progress); render(); });
+  $('#btn-check').addEventListener('click', check);
+  $('#btn-reveal').addEventListener('click', ()=>{ $('#answer').value = current().term; state.judged = true; render(); });
+  $('#btn-next').addEventListener('click', next);
+  $('#lesson').addEventListener('change', (e)=>{ state.lesson = e.target.value; resetOrder(); state.index=0; state.judged=null; state.locked=false; $('#answer').value=''; render(true); });
+  $('#answer').addEventListener('keydown', (e)=>{ if (e.key==='Enter') check(); });
+  // 入力が変わったらロック解除（再挑戦OK）
+  $('#answer').addEventListener('input', ()=>{ state.locked = false; updateCheckButton(); });
+}
+
+function items(){ return LESSONS[state.lesson]; }
+function current(){ return items()[state.order[state.index]]; }
+function resetOrder(){ state.order = items().map((_,i)=>i); }
+function shuffle(){ state.order.sort(()=>Math.random()-0.5); state.index=0; state.judged=null; state.locked=false; $('#answer').value=''; }
+
+function check(){
+  if (state.locked) return; // 連打無効
+  const ans = normalize($('#answer').value);
+  const ok = buildAcceptableAnswers(current().term).includes(ans);
+  state.judged = ok;
+  state.locked = true; // ここでロック
+
+  // レッスン集計
+  const rec = state.progress[state.lesson] || { total:0, correct:0 };
+  rec.total += 1; rec.correct += ok ? 1 : 0; state.progress[state.lesson] = rec; saveLS(LS_KEY, state.progress);
+
+  // 試行履歴（日別正答率）
+  state.attempts.push({ date: todayISO(), correct: ok });
+  saveLS(LS_KEY_ATTEMPTS, state.attempts);
+
+  render();
+  drawDailyChart();
+}
+function next(){ state.index = (state.index + 1) % items().length; state.judged=null; state.locked=false; $('#answer').value=''; render(true); }
+
+function progressRate(){
+  const rec = state.progress[state.lesson];
+  if (!rec || rec.total===0) return '—';
+  return `${Math.round(rec.correct/rec.total*100)}% (${rec.correct}/${rec.total})`;
+}
+
+function render(focusAnswer){
+  const cur = current();
+  const cloze = makeCloze(cur.sentence, cur.term);
+  $('#cloze').textContent = cloze.text;
   const hint = $('#hint');
   hint.style.display = state.showHint ? '' : 'none';
-  hint.innerHTML = renderHint(cur.jp);
+  hint.innerHTML = 'ヒント（日）：' + kanaize(cur.jp);
+  $('#accept').textContent = '受け付ける答え：' + buildAcceptableAnswers(cur.term).join(', ');
+  $('#position').textContent = `${state.index+1} / ${items().length}`;
+  $('#stats').textContent = `${state.lesson}｜正答率 ${progressRate()}`;
+  $('#btn-hint').textContent = state.showHint ? '和訳ヒント ON' : '和訳ヒント OFF';
+
+  const judge = $('#judge');
+  judge.className = 'judge';
+  if (state.judged === true){ judge.textContent = '正解！よくできました。'; judge.classList.add('ok'); }
+  else if (state.judged === false){ judge.textContent = `不正解… 正解は「${cur.term}」`; judge.classList.add('bad'); }
+  else { judge.textContent = ''; }
+
+  updateCheckButton();
+  if (focusAnswer) $('#answer').focus();
 }
+
+function updateCheckButton(){
+  const btn = $('#btn-check');
+  btn.disabled = state.locked;
+  btn.textContent = state.locked ? '判定（済）' : '判定';
+}
+
+// ===== Chart (vanilla canvas) =====
+function getDailySeries(days=30){
+  const end = new Date();
+  const series = [];
+  for (let i = days-1; i >= 0; i--){
+    const d = new Date(end); d.setDate(end.getDate()-i);
+    const key = new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10);
+    const arr = state.attempts.filter(a=>a.date===key);
+    const total = arr.length;
+    const correct = arr.filter(a=>a.correct).length;
+    const rate = total ? Math.round(correct/total*100) : null;
+    series.push({ date:key, total, correct, rate });
+  }
+  return series;
+}
+
+function drawDailyChart(){
+  const canvas = document.getElementById('dailyChart');
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth || 600;
+  const h = canvas.clientHeight || 220;
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0,0,w,h);
+
+  const padding = { left: 40, right: 12, top: 10, bottom: 24 };
+  const series = getDailySeries(30);
+
+  // axes
+  ctx.strokeStyle = '#e5e7eb';
+  ctx.beginPath();
+  ctx.moveTo(padding.left, padding.top);
+  ctx.lineTo(padding.left, h - padding.bottom);
+  ctx.lineTo(w - padding.right, h - padding.bottom);
+  ctx.stroke();
+
+  // y ticks (0, 50, 100)
+  ctx.fillStyle = '#6b7280'; ctx.font = '12px system-ui';
+  [0,50,100].forEach(val=>{
+    const y = mapY(val);
+    ctx.fillText(val+'%', 4, y+4);
+    ctx.strokeStyle = '#f3f4f6';
+    ctx.beginPath(); ctx.moveTo(padding.left, y); ctx.lineTo(w-padding.right, y); ctx.stroke();
+  });
+
+  // line
+  ctx.strokeStyle = '#2563eb'; ctx.lineWidth = 2;
+  ctx.beginPath();
+  let started=false;
+  series.forEach((pt, i)=>{
+    if (pt.rate==null) return; // データなし日はスキップ
+    const x = mapX(i);
+    const y = mapY(pt.rate);
+    if (!started){ ctx.moveTo(x,y); started=true; }
+    else { ctx.lineTo(x,y); }
+  });
+  ctx.stroke();
+
+  // dots
+  ctx.fillStyle = '#2563eb';
+  series.forEach((pt,i)=>{
+    if (pt.rate==null) return;
+    const x = mapX(i), y = mapY(pt.rate);
+    ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI*2); ctx.fill();
+  });
+
+  // x labels（5日ごと）
+  ctx.fillStyle = '#6b7280'; ctx.font = '11px system-ui';
+  series.forEach((pt,i)=>{
+    if (i%5===0){ ctx.fillText(pt.date.slice(5), mapX(i)-14, h - padding.bottom + 14); }
+  });
+
+  function mapX(i){
+    const left = padding.left, right = w - padding.right;
+    const N = series.length - 1;
+    return left + (right-left) * (N===0?0:(i/N));
+  }
+  function mapY(val){
+    const top = padding.top, bottom = h - padding.bottom;
+    const min=0, max=100;
+    return bottom - (bottom-top) * ((val-min)/(max-min));
+  }
+}
+
+document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
 </html>
